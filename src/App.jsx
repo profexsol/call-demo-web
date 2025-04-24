@@ -5,13 +5,16 @@ import "./assets/app.css";
 
 var url = new URL(window.location.href);
 const query_params = new URLSearchParams(url.search);
-var name = query_params.get('name') || 'John Doe';
+var existing_name = query_params.get('name') || 'John Doe';
+var existing_user_id = query_params.get('user_id')
 var profile_image = 'https://cdn.wnsocial.com/icon-person.png';
 
 function App() {
     const [ms_socket, setMsSocket] = useState(false);
     const [users_list, setUsersList] = useState([]);
+    const [name, setName] = useState(existing_name);
     const [user, setUser] = useState({});
+    const [show_name_screen, setShowNameScreen] = useState(existing_user_id ? false : true);
 
     const css_online_offline = {
         display: 'inline-block', 
@@ -42,15 +45,9 @@ function App() {
         ms_socket.on('connect', function() {
             console.log('ms_socket connected');
 
-            ms_socket.emit('call-demo:join', { name: name, profile_image }, ({ user_id }) => {
-                setUser({ 
-                    id: user_id, 
-                    name, 
-                    firstname: name, 
-                    lastname: '', 
-                    profile_image
-                });
-            });
+            if(!show_name_screen) {
+                joinDemo(existing_user_id);
+            }
         });
 
         ms_socket.on('call-demo:users-list-updated', ({ users }) => {
@@ -69,40 +66,89 @@ function App() {
         });
     }
 
-    return (
-        <div className="users-list">
-            {
-                users_list.filter(userr => userr.id !== user.id).map((userr) => (
-                    <div key={ userr.id } className="users-list-item">
-                        { userr.name } ({ userr.id })
+    const joinDemo = (existing_user_id) => {
+        var data = { name, profile_image };
+        if(existing_user_id) data['id'] = existing_user_id;
 
-                        {
-                            userr.is_online ? 
-                            
-                            <span style={css_online_offline}></span> 
-                            
-                            : 
-                            
-                            <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
-                        }
-                        
-                        {
-                            userr.is_online &&
-                        
-                            <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
-                        }
-                    </div>
-                ))
-            }
+        ms_socket.emit('call-demo:join', data, ({ user_id }) => {
+            setUser({ 
+                id: user_id, 
+                name, 
+                firstname: name, 
+                lastname: '', 
+                profile_image
+            });
+
+            const url = new URL(window.location);
+            url.searchParams.set('user_id', user_id);
+            url.searchParams.set('name', name);
+            window.history.pushState({}, '', url);
+        });
+
+        setShowNameScreen(false);
+    }
+
+    return (
+        <>
+        {
+            show_name_screen &&
+        
+            <div className="name-screen">
+                <h3 className="mb-4 text-center">Call Demo</h3>
+
+                <input 
+                    type="text" 
+                    className="form-control" placeholder="Enter your name" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)} 
+                />
+
+                <input type="button" className="btn btn-primary mt-2" value="Join" onClick={() => joinDemo()} />
+            </div>
+        }
+
+        {
+            !show_name_screen &&
             
-            {
-                user.id &&
+            <div className="users-list-parent">
+                <h3 className="mb-4">Demo Users (Logged in as: {name})</h3>
                 
-                <div className="call-demo">
-                    <SampleCall current_user={user} />
+                <div className="users-list">
+                    {
+                        users_list.filter(userr => userr.id !== user.id).map((userr) => (
+                            <div key={ userr.id } className="users-list-item">
+                                { userr.name } ({ userr.id })
+
+                                {
+                                    userr.is_online ? 
+                                    
+                                    <span style={css_online_offline}></span> 
+                                    
+                                    : 
+                                    
+                                    <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
+                                }
+                                
+                                {
+                                    userr.is_online &&
+                                
+                                    <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
+                                }
+                            </div>
+                        ))
+                    }
                 </div>
-            }
-        </div>
+            </div>
+        }
+            
+        {
+            user.id &&
+            
+            <div className="call-demo">
+                <SampleCall current_user={user} />
+            </div>
+        }
+        </>
     )
 }
 

@@ -1,5 +1,18 @@
+.users-list-parent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .users-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.name-screen {
+  width: 50%;
+  height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
 }
