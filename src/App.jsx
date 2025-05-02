@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import io from "socket.io-client";
 import SampleCall from "../../call-web/src/components/App.jsx";
 import "./assets/app.css";
+import Modal from 'react-bootstrap/Modal';
 
 var url = new URL(window.location.href);
 const query_params = new URLSearchParams(url.search);
@@ -14,6 +15,9 @@ function App() {
     const [users_list, setUsersList] = useState([]);
     const [name, setName] = useState(existing_name);
     const [user, setUser] = useState({});
+    const [group_name, setGroupName] = useState('');
+    const [group_users, setGroupUsers] = useState([]);
+    const [show_group_creation, setShowGroupCreation] = useState(false);
     const [show_name_screen, setShowNameScreen] = useState(existing_user_id ? false : true);
 
     const css_online_offline = {
@@ -29,7 +33,6 @@ function App() {
         background: 'red'
     };
     
-
     useEffect(() => {
         var ms_socket = io(import.meta.env.VITE_CALL_DEMO_SERVER_URL,{ 
             query: { },
@@ -59,9 +62,7 @@ function App() {
 
     const makeCall = (userr) => {
         window.prepareJoinCall({ 
-            chat_id: 12345, 
-            chat: { id: 12345, call_name: userr.name, call_image: userr.profile_image }, 
-            target_user_id: userr.id, 
+            call: { target_user_id: userr.id, name: userr.name, image: userr.profile_image },
             current_user: user 
         });
     }
@@ -88,6 +89,27 @@ function App() {
         setShowNameScreen(false);
     }
 
+    const groupUserCheckboxChange = (event, user) => {
+        const checked = event.target.checked;
+    
+        if (checked) {
+            setGroupUsers([...group_users, user.id])
+        } else {
+            setGroupUsers(selected_users.filter(id => id !== user.id));
+        }
+    };
+
+    const createGroup = () => {
+        setShowGroupCreation(false);
+
+        ms_socket.emit('call-demo:create-group', { name: group_name, image: profile_image, user_ids: group_users }, ({ group_id }) => {
+            window.prepareJoinCall({
+                call: { group_id, name: group_name, image: user.profile_image },
+                current_user: user 
+            });
+        });
+    }
+
     return (
         <>
         {
@@ -112,34 +134,76 @@ function App() {
             
             <div className="users-list-parent">
                 <h3 className="mb-4">Demo Users (Logged in as: {name})</h3>
+
+                <button className="btn btn-primary mb-3" onClick={ () => setShowGroupCreation(true) }>Create Group Call</button>
                 
                 <div className="users-list">
-                    {
-                        users_list.filter(userr => userr.id !== user.id).map((userr) => (
-                            <div key={ userr.id } className="users-list-item">
-                                { userr.name } ({ userr.id })
+                {
+                    users_list.filter(userr => userr.id !== user.id).map((userr) => (
+                    
+                    <div key={ userr.id } className="users-list-item">
+                        { userr.name } ({ userr.id })
 
-                                {
-                                    userr.is_online ? 
-                                    
-                                    <span style={css_online_offline}></span> 
-                                    
-                                    : 
-                                    
-                                    <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
-                                }
-                                
-                                {
-                                    userr.is_online &&
-                                
-                                    <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
-                                }
-                            </div>
-                        ))
-                    }
-                </div>
+                        {
+                            userr.is_online ? 
+                            
+                            <span style={css_online_offline}></span> 
+                            
+                            : 
+                            
+                            <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
+                        }
+                        
+                        {
+                            userr.is_online &&
+                        
+                            <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
+                        }
+                    </div>
+                    ))
+                }
+        </div>
             </div>
         }
+
+        <Modal show={show_group_creation}>
+            <Modal.Body>
+                <input 
+                    type="text" 
+                    className="form-control"
+                    placeholder="Enter group name" 
+                    value={group_name} 
+                    onChange={(e) => setGroupName(e.target.value)} 
+                />
+                
+                <h6 className="mt-3">Select Users</h6>
+                
+                <div className="users-list">
+                {
+                    users_list.filter(userr => userr.is_online && userr.id !== user.id).map((userr) => (
+                    
+                    <div key={ userr.id } className="users-list-item">
+                        <div className="user">
+                            <input 
+                                type="checkbox" 
+                                className="mr-2"
+                                checked={ group_users.includes(userr.id) } 
+                                onChange={ (e) => groupUserCheckboxChange(e, userr)} 
+                            />
+                            
+                            { userr.name } ({ userr.id })
+                        </div>
+                    </div>
+                    ))
+                }
+                </div>
+
+                <div className="buttons mt-3">
+                    <button className="btn btn-primary mr-2" onClick={ createGroup }>Start Group Call</button>
+                    <button className="btn btn-danger" onClick={ () => setShowGroupCreation(false) }>Cancel</button>
+                </div>
+            </Modal.Body>
+        </Modal>
             
         {
             user.id &&
@@ -150,6 +214,37 @@ function App() {
         }
         </>
     )
+}
+
+function UsersList({ users, current_user }) {
+    return (
+        <div className="users-list">
+            {
+                props.users.filter(userr => userr.id !== current_user.id).map((userr) => (
+                
+                <div key={ userr.id } className="users-list-item">
+                    { userr.name } ({ userr.id })
+
+                    {
+                        userr.is_online ? 
+                        
+                        <span style={css_online_offline}></span> 
+                        
+                        : 
+                        
+                        <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
+                    }
+                    
+                    {
+                        userr.is_online &&
+                    
+                        <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
+                    }
+                </div>
+                ))
+            }
+        </div>
+    );
 }
 
 export default App;
