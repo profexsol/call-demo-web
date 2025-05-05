@@ -62,13 +62,13 @@ function App() {
 
     const makeCall = (userr) => {
         window.prepareJoinCall({ 
-            call: { target_user_id: userr.id, name: userr.name, image: userr.profile_image },
+            call: { target_user_id: userr.id, name: userr.name, image: userr.image },
             current_user: user 
         });
     }
 
     const joinDemo = (existing_user_id) => {
-        var data = { name, profile_image };
+        var data = { name, image: profile_image };
         if(existing_user_id) data['id'] = existing_user_id;
 
         ms_socket.emit('call-demo:join', data, ({ user_id }) => {
@@ -77,7 +77,8 @@ function App() {
                 name, 
                 firstname: name, 
                 lastname: '', 
-                profile_image
+                profile_image,
+                image: profile_image
             });
 
             const url = new URL(window.location);
@@ -104,7 +105,7 @@ function App() {
 
         ms_socket.emit('call-demo:create-group', { name: group_name, image: profile_image, user_ids: group_users }, ({ group_id }) => {
             window.prepareJoinCall({
-                call: { group_id, name: group_name, image: user.profile_image },
+                call: { group_id, name: group_name, image: profile_image },
                 current_user: user 
             });
         });
@@ -214,37 +215,6 @@ function App() {
         }
         </>
     )
-}
-
-function UsersList({ users, current_user }) {
-    return (
-        <div className="users-list">
-            {
-                props.users.filter(userr => userr.id !== current_user.id).map((userr) => (
-                
-                <div key={ userr.id } className="users-list-item">
-                    { userr.name } ({ userr.id })
-
-                    {
-                        userr.is_online ? 
-                        
-                        <span style={css_online_offline}></span> 
-                        
-                        : 
-                        
-                        <span style={{ ...css_online_offline, ...css_online_offline__offline }}></span>
-                    }
-                    
-                    {
-                        userr.is_online &&
-                    
-                        <button className='btn btn-success btn-sm ml-2' onClick={ () => makeCall(userr) }>Call</button>
-                    }
-                </div>
-                ))
-            }
-        </div>
-    );
 }
 
 export default App;
